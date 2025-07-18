@@ -54,13 +54,13 @@ public abstract class NamedContextFactory<C extends NamedContextFactory.Specific
 
 	private final String propertyName;
 
-	private Map<String, AnnotationConfigApplicationContext> contexts = new ConcurrentHashMap<>();
+	private Map<String, AnnotationConfigApplicationContext> contexts = new ConcurrentHashMap<>(); /* 独立 子容器 */
 
 	private Map<String, C> configurations = new ConcurrentHashMap<>();
 
 	private ApplicationContext parent;
 
-	private Class<?> defaultConfigType;
+	private Class<?> defaultConfigType; /* 默认配置类 RibbonClientConfiguration -  ZoneAwareLoadBalancer / ZoneAvoidanceRule */
 
 	public NamedContextFactory(Class<?> defaultConfigType, String propertySourceName,
 			String propertyName) {
@@ -99,7 +99,7 @@ public abstract class NamedContextFactory<C extends NamedContextFactory.Specific
 		if (!this.contexts.containsKey(name)) {
 			synchronized (this.contexts) {
 				if (!this.contexts.containsKey(name)) {
-					this.contexts.put(name, createContext(name));
+					this.contexts.put(name, createContext(name)); /* 容器不存在，先创建 */
 				}
 			}
 		}
@@ -107,7 +107,7 @@ public abstract class NamedContextFactory<C extends NamedContextFactory.Specific
 	}
 
 	protected AnnotationConfigApplicationContext createContext(String name) {
-		AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+		AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(); /* 实例化一个ApplicationContext */
 		if (this.configurations.containsKey(name)) {
 			for (Class<?> configuration : this.configurations.get(name)
 					.getConfiguration()) {
@@ -116,25 +116,25 @@ public abstract class NamedContextFactory<C extends NamedContextFactory.Specific
 		}
 		for (Map.Entry<String, C> entry : this.configurations.entrySet()) {
 			if (entry.getKey().startsWith("default.")) {
-				for (Class<?> configuration : entry.getValue().getConfiguration()) {
-					context.register(configuration);
+				for (Class<?> configuration : entry.getValue().getConfiguration()) { /* RibbonNacosAutoConfiguration 中存在配置类 - NacosRibbonClientConfiguration */
+					context.register(configuration); /* 添加配置类 - NacosRibbonClientConfiguration --> 定义 NacosServerList - ZoneAwareLoadBalacer使用 */
 				}
 			}
 		}
 		context.register(PropertyPlaceholderAutoConfiguration.class,
-				this.defaultConfigType);
+				this.defaultConfigType); /* 默认配置类 - RibbonClientConfiguration -  定义 ZoneAwareLoadBalancer / ZoneAvoidanceRule */
 		context.getEnvironment().getPropertySources().addFirst(new MapPropertySource(
 				this.propertySourceName,
-				Collections.<String, Object>singletonMap(this.propertyName, name)));
+				Collections.<String, Object>singletonMap(this.propertyName, name))); /* 服务名 ribbon.client.name = mall-order  */
 		if (this.parent != null) {
 			// Uses Environment from parent as well as beans
-			context.setParent(this.parent);
+			context.setParent(this.parent); /* 父容器 - 应用容器 - AnnotationConfigServletWebServerApplicationContext  */
 			// jdk11 issue
 			// https://github.com/spring-cloud/spring-cloud-netflix/issues/3101
 			context.setClassLoader(this.parent.getClassLoader());
 		}
 		context.setDisplayName(generateDisplayName(name));
-		context.refresh();
+		context.refresh(); /* 实例化容器对象 */
 		return context;
 	}
 
@@ -143,9 +143,9 @@ public abstract class NamedContextFactory<C extends NamedContextFactory.Specific
 	}
 
 	public <T> T getInstance(String name, Class<T> type) {
-		AnnotationConfigApplicationContext context = getContext(name);
+		AnnotationConfigApplicationContext context = getContext(name); /* 获取服务独立的 Spring容器SpringContext */
 		try {
-			return context.getBean(type);
+			return context.getBean(type);/* 独立容器中，获取实例对象 */
 		}
 		catch (NoSuchBeanDefinitionException e) {
 			// ignore
