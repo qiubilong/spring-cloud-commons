@@ -54,13 +54,13 @@ public abstract class NamedContextFactory<C extends NamedContextFactory.Specific
 
 	private final String propertyName;
 
-	private Map<String, AnnotationConfigApplicationContext> contexts = new ConcurrentHashMap<>(); /* 独立 子容器 */
+	private Map<String, AnnotationConfigApplicationContext> contexts = new ConcurrentHashMap<>(); /* 支持 独立子容器 */
 
 	private Map<String, C> configurations = new ConcurrentHashMap<>();
 
 	private ApplicationContext parent;
 
-	private Class<?> defaultConfigType; /* 默认配置类 RibbonClientConfiguration -  ZoneAwareLoadBalancer / ZoneAvoidanceRule */
+	private Class<?> defaultConfigType; /* 默认配置类 RibbonClientConfiguration -  定义 ZoneAwareLoadBalancer / ZoneAvoidanceRule */
 
 	public NamedContextFactory(Class<?> defaultConfigType, String propertySourceName,
 			String propertyName) {
@@ -117,7 +117,7 @@ public abstract class NamedContextFactory<C extends NamedContextFactory.Specific
 		for (Map.Entry<String, C> entry : this.configurations.entrySet()) {
 			if (entry.getKey().startsWith("default.")) {
 				for (Class<?> configuration : entry.getValue().getConfiguration()) { /* RibbonNacosAutoConfiguration 中存在配置类 - NacosRibbonClientConfiguration */
-					context.register(configuration); /* 添加配置类 - NacosRibbonClientConfiguration --> 定义 NacosServerList - ZoneAwareLoadBalacer使用 */
+					context.register(configuration); /* 添加拓展配置类 - NacosRibbonClientConfiguration --> 定义 NacosServerList - ZoneAwareLoadBalacer使用 */
 				}
 			}
 		}
